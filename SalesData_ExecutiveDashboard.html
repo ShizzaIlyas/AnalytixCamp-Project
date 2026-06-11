@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Executive Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --navy:#1E1B4B;--purple:#534AB7;--purple-l:#EDE9FE;--purple-ll:#F5F3FF;
+    --teal:#1D9E75;--teal-l:#D1FAE5;--amber:#D97706;--amber-l:#FEF3C7;
+    --coral:#DC2626;--coral-l:#FEE2E2;--blue:#2563EB;--blue-l:#DBEAFE;
+    --gray:#6B7280;--light:#F3F4F6;--border:#E5E7EB;--white:#FFFFFF;
+    --bg:#F0EFF8;--text:#111827;--text2:#374151;
+  }
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  /* ── Header ── */
+  .header{background:var(--navy);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;border-bottom:3px solid var(--purple)}
+  .header-left h1{font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px}
+  .header-left p{font-size:11px;color:#A5B4FC;margin-top:2px}
+  .header-right{font-size:11px;color:#A5B4FC;text-align:right}
+
+  /* ── Filters ── */
+  .filters{background:#fff;border-bottom:1px solid var(--border);padding:10px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .filter-group{display:flex;align-items:center;gap:6px}
+  .filter-group label{font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap}
+  .filter-group select{font-size:12px;padding:5px 10px;border:1.5px solid var(--border);border-radius:7px;background:#fff;color:var(--text2);cursor:pointer;outline:none;min-width:130px;transition:border-color .15s}
+  .filter-group select:focus{border-color:var(--purple)}
+  .filter-sep{width:1px;height:28px;background:var(--border);margin:0 4px}
+  .btn-reset{font-size:11px;padding:5px 14px;background:var(--purple);color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600;transition:opacity .15s}
+  .btn-reset:hover{opacity:.85}
+  .result-count{font-size:11px;color:var(--gray);margin-left:auto}
+
+  /* ── Tabs ── */
+  .tabs{background:#fff;border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:2px}
+  .tab{padding:10px 20px;font-size:13px;font-weight:500;color:var(--gray);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;white-space:nowrap}
+  .tab.active{color:var(--purple);border-bottom-color:var(--purple);font-weight:700}
+  .tab:hover:not(.active){color:var(--text2);background:var(--light);border-radius:6px 6px 0 0}
+
+  /* ── Main ── */
+  .main{padding:20px 24px;display:none}
+  .main.active{display:block}
+
+  /* ── KPI Cards ── */
+  .kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:20px}
+  .kpi-card{background:#fff;border-radius:12px;padding:16px 18px;border:1px solid var(--border);position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
+  .kpi-card:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,.08)}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:12px 12px 0 0}
+  .kpi-card.c-purple::before{background:var(--purple)}
+  .kpi-card.c-teal::before{background:var(--teal)}
+  .kpi-card.c-amber::before{background:var(--amber)}
+  .kpi-card.c-coral::before{background:var(--coral)}
+  .kpi-card.c-blue::before{background:var(--blue)}
+  .kpi-label{font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .kpi-value{font-size:24px;font-weight:700;line-height:1.1;margin-bottom:4px}
+  .kpi-card.c-purple .kpi-value{color:var(--purple)}
+  .kpi-card.c-teal .kpi-value{color:var(--teal)}
+  .kpi-card.c-amber .kpi-value{color:var(--amber)}
+  .kpi-card.c-coral .kpi-value{color:var(--coral)}
+  .kpi-card.c-blue .kpi-value{color:var(--blue)}
+  .kpi-sub{font-size:11px;color:var(--gray)}
+  .kpi-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-top:4px}
+  .badge-up{background:#D1FAE5;color:#065F46}
+  .badge-dn{background:#FEE2E2;color:#991B1B}
+
+  /* ── Chart cards ── */
+  .row{display:grid;gap:14px;margin-bottom:14px}
+  .row-2{grid-template-columns:1fr 1fr}
+  .row-3{grid-template-columns:2fr 1fr 1fr}
+  .row-2-1{grid-template-columns:2fr 1fr}
+  .row-1-2{grid-template-columns:1fr 2fr}
+  .chart-card{background:#fff;border-radius:12px;padding:16px 18px;border:1px solid var(--border)}
+  .chart-title{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px}
+  .chart-sub{font-size:11px;color:var(--gray);margin-bottom:14px}
+  .chart-wrap{position:relative}
+
+  /* ── Table / Matrix ── */
+  .table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead tr{background:var(--navy)}
+  thead th{padding:10px 14px;color:#fff;font-weight:600;text-align:left;white-space:nowrap}
+  thead th:not(:first-child){text-align:right}
+  tbody tr:nth-child(even){background:var(--purple-ll)}
+  tbody tr:hover{background:var(--purple-l)}
+  tbody td{padding:9px 14px;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+  tfoot tr{background:var(--purple-l)}
+  tfoot td{padding:9px 14px;font-weight:700;color:var(--navy);border-top:2px solid var(--purple)}
+  tfoot td:not(:first-child){text-align:right}
+  .rank-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:700;margin-right:4px}
+  .r1{background:#FEF08A;color:#854D0E}
+  .r2{background:#E2E8F0;color:#475569}
+  .r3{background:#FED7AA;color:#9A3412}
+  .bar-cell{display:flex;align-items:center;gap:8px}
+  .mini-bar{height:6px;border-radius:3px;background:var(--purple);flex-shrink:0}
+
+  /* ── Donut legend ── */
+  .donut-wrap{display:flex;align-items:center;gap:16px}
+  .donut-legend{display:flex;flex-direction:column;gap:6px;flex:1}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:11px}
+  .legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+  .legend-val{margin-left:auto;font-weight:600;color:var(--text)}
+  .legend-pct{color:var(--gray);font-size:10px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>SALES EXECUTIVE DASHBOARD</h1>
+    <p>SalesData Analytics &nbsp;·&nbsp; Jan – Jul 2025 &nbsp;·&nbsp; Live from Power BI MCP</p>
+  </div>
+  <div class="header-right">
+    <div>200 Transactions &nbsp;·&nbsp; 4 Regions &nbsp;·&nbsp; 5 Products &nbsp;·&nbsp; 4 Categories</div>
+    <div style="margin-top:3px">Last refreshed: June 2, 2026</div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <div class="filter-group"><label>📅 Date Range</label>
+    <select id="f-month" onchange="applyFilters()">
+      <option value="all">All Months</option>
+      <option value="1">January 2025</option><option value="2">February 2025</option>
+      <option value="3">March 2025</option><option value="4">April 2025</option>
+      <option value="5">May 2025</option><option value="6">June 2025</option>
+      <option value="7">July 2025</option>
+    </select>
+  </div>
+  <div class="filter-sep"></div>
+  <div class="filter-group"><label>🌍 Region</label>
+    <select id="f-region" onchange="applyFilters()">
+      <option value="all">All Regions</option>
+      <option>East</option><option>North</option><option>South</option><option>West</option>
+    </select>
+  </div>
+  <div class="filter-sep"></div>
+  <div class="filter-group"><label>📦 Product</label>
+    <select id="f-product" onchange="applyFilters()">
+      <option value="all">All Products</option>
+      <option>Keyboard</option><option>Laptop</option><option>Monitor</option>
+      <option>Mouse</option><option>Printer</option>
+    </select>
+  </div>
+  <div class="filter-sep"></div>
+  <div class="filter-group"><label>🏷 Category</label>
+    <select id="f-category" onchange="applyFilters()">
+      <option value="all">All Categories</option>
+      <option>Computers</option><option>Displays</option>
+      <option>Office Equipment</option><option>Peripherals</option>
+    </select>
+  </div>
+  <button class="btn-reset" onclick="resetFilters()">Reset</button>
+  <span class="result-count" id="result-count">200 records</span>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+  <button class="tab" onclick="switchTab('sales',this)">Sales Analysis</button>
+  <button class="tab" onclick="switchTab('profit',this)">Profit Analysis</button>
+  <button class="tab" onclick="switchTab('trends',this)">Time Trends</button>
+  <button class="tab" onclick="switchTab('matrix',this)">Detailed Matrix</button>
+</div>
+
+<!-- TAB: OVERVIEW -->
+<div id="tab-overview" class="main active">
+  <div class="kpi-grid">
+    <div class="kpi-card c-purple"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="kpi-sales">—</div><div class="kpi-sub" id="kpi-sales-sub">—</div></div>
+    <div class="kpi-card c-teal"><div class="kpi-label">Net Profit</div><div class="kpi-value" id="kpi-profit">—</div><div class="kpi-sub" id="kpi-profit-sub">—</div></div>
+    <div class="kpi-card c-amber"><div class="kpi-label">Profit Margin</div><div class="kpi-value" id="kpi-margin">—</div><div class="kpi-sub">Revenue efficiency</div></div>
+    <div class="kpi-card c-coral"><div class="kpi-label">Total Orders</div><div class="kpi-value" id="kpi-orders">—</div><div class="kpi-sub" id="kpi-orders-sub">—</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Avg Order Value</div><div class="kpi-value" id="kpi-aov">—</div><div class="kpi-sub">Per transaction</div></div>
+  </div>
+  <div class="row row-3">
+    <div class="chart-card"><div class="chart-title">Sales & Profit Trend</div><div class="chart-sub">Daily revenue and profit over time</div><div class="chart-wrap" style="height:220px"><canvas id="c-trend"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Sales by Region</div><div class="chart-sub">Revenue contribution per region</div><div class="chart-wrap" style="height:220px"><canvas id="c-region-bar"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Regional Share</div><div class="chart-sub">% of total revenue</div><div class="chart-wrap" style="height:180px"><canvas id="c-region-donut"></canvas></div><div id="donut-legend-region" style="margin-top:8px"></div></div>
+  </div>
+  <div class="row row-2">
+    <div class="chart-card"><div class="chart-title">Top Products by Revenue</div><div class="chart-sub">Sales and profit comparison</div><div class="chart-wrap" style="height:200px"><canvas id="c-product-bar"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Category Performance</div><div class="chart-sub">Revenue, profit, and margin by category</div><div class="chart-wrap" style="height:200px"><canvas id="c-category-bar"></canvas></div></div>
+  </div>
+</div>
+
+<!-- TAB: SALES -->
+<div id="tab-sales" class="main">
+  <div class="kpi-grid">
+    <div class="kpi-card c-purple"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="s-sales">—</div><div class="kpi-sub" id="s-sales-sub">—</div></div>
+    <div class="kpi-card c-teal"><div class="kpi-label">Total Orders</div><div class="kpi-value" id="s-orders">—</div><div class="kpi-sub">Transactions</div></div>
+    <div class="kpi-card c-amber"><div class="kpi-label">Avg Order Value</div><div class="kpi-value" id="s-aov">—</div><div class="kpi-sub">Per transaction</div></div>
+    <div class="kpi-card c-coral"><div class="kpi-label">Best Region</div><div class="kpi-value" id="s-top-region" style="font-size:20px">—</div><div class="kpi-sub" id="s-top-region-val">—</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Best Product</div><div class="kpi-value" id="s-top-product" style="font-size:20px">—</div><div class="kpi-sub" id="s-top-product-val">—</div></div>
+  </div>
+  <div class="row row-2">
+    <div class="chart-card"><div class="chart-title">Daily Sales Trend</div><div class="chart-sub">Revenue over time with moving average</div><div class="chart-wrap" style="height:220px"><canvas id="c-sales-trend"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Sales by Region × Product</div><div class="chart-sub">Stacked breakdown</div><div class="chart-wrap" style="height:220px"><canvas id="c-stacked-region"></canvas></div></div>
+  </div>
+  <div class="row row-2">
+    <div class="chart-card"><div class="chart-title">Product Revenue Ranking</div><div class="chart-sub">Top products with order count</div><div class="chart-wrap" style="height:200px"><canvas id="c-prod-rank"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Category Sales Share</div><div class="chart-sub">Revenue contribution by category</div><div class="chart-wrap" style="height:160px"><canvas id="c-cat-donut"></canvas></div><div id="donut-legend-cat" style="margin-top:8px"></div></div>
+  </div>
+</div>
+
+<!-- TAB: PROFIT -->
+<div id="tab-profit" class="main">
+  <div class="kpi-grid">
+    <div class="kpi-card c-teal"><div class="kpi-label">Net Profit</div><div class="kpi-value" id="p-profit">—</div><div class="kpi-sub">Total earnings</div></div>
+    <div class="kpi-card c-amber"><div class="kpi-label">Profit Margin</div><div class="kpi-value" id="p-margin">—</div><div class="kpi-sub">Overall margin</div></div>
+    <div class="kpi-card c-purple"><div class="kpi-label">Avg Profit / Order</div><div class="kpi-value" id="p-apo">—</div><div class="kpi-sub">Per transaction</div></div>
+    <div class="kpi-card c-coral"><div class="kpi-label">Best Margin Region</div><div class="kpi-value" id="p-top-region" style="font-size:20px">—</div><div class="kpi-sub" id="p-top-region-m">—</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Best Margin Product</div><div class="kpi-value" id="p-top-product" style="font-size:20px">—</div><div class="kpi-sub" id="p-top-product-m">—</div></div>
+  </div>
+  <div class="row row-2">
+    <div class="chart-card"><div class="chart-title">Profit Trend Over Time</div><div class="chart-sub">Daily profit performance</div><div class="chart-wrap" style="height:220px"><canvas id="c-profit-trend"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Profit & Margin by Region</div><div class="chart-sub">Absolute profit vs margin %</div><div class="chart-wrap" style="height:220px"><canvas id="c-profit-region"></canvas></div></div>
+  </div>
+  <div class="row row-2">
+    <div class="chart-card"><div class="chart-title">Profit by Product</div><div class="chart-sub">Net profit and margin per product</div><div class="chart-wrap" style="height:200px"><canvas id="c-profit-product"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Category Profit Share</div><div class="chart-sub">Profit distribution across categories</div><div class="chart-wrap" style="height:160px"><canvas id="c-profit-cat-donut"></canvas></div><div id="donut-legend-profit-cat" style="margin-top:8px"></div></div>
+  </div>
+</div>
+
+<!-- TAB: TRENDS -->
+<div id="tab-trends" class="main">
+  <div class="kpi-grid">
+    <div class="kpi-card c-purple"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="t-sales">—</div><div class="kpi-sub">Jan–Jul 2025</div></div>
+    <div class="kpi-card c-teal"><div class="kpi-label">Best Month</div><div class="kpi-value" id="t-best-month" style="font-size:20px">—</div><div class="kpi-sub" id="t-best-month-v">—</div></div>
+    <div class="kpi-card c-amber"><div class="kpi-label">Best Day</div><div class="kpi-value" id="t-best-day" style="font-size:16px">—</div><div class="kpi-sub" id="t-best-day-v">—</div></div>
+    <div class="kpi-card c-coral"><div class="kpi-label">Avg Daily Sales</div><div class="kpi-value" id="t-avg-day">—</div><div class="kpi-sub">Per trading day</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Sales per Day (Curr)</div><div class="kpi-value" id="t-spd">—</div><div class="kpi-sub">Filtered period</div></div>
+  </div>
+  <div class="chart-card" style="margin-bottom:14px"><div class="chart-title">Revenue & Profit Over Time</div><div class="chart-sub">Full daily time series with trend</div><div class="chart-wrap" style="height:230px"><canvas id="c-full-trend"></canvas></div></div>
+  <div class="row row-2">
+    <div class="chart-card"><div class="chart-title">Monthly Revenue Summary</div><div class="chart-sub">Revenue and profit by month</div><div class="chart-wrap" style="height:200px"><canvas id="c-monthly"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Region Performance Over Time</div><div class="chart-sub">Monthly stacked by region</div><div class="chart-wrap" style="height:200px"><canvas id="c-region-time"></canvas></div></div>
+  </div>
+</div>
+
+<!-- TAB: MATRIX -->
+<div id="tab-matrix" class="main">
+  <div class="kpi-grid">
+    <div class="kpi-card c-purple"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="m-sales">—</div><div class="kpi-sub">—</div></div>
+    <div class="kpi-card c-teal"><div class="kpi-label">Net Profit</div><div class="kpi-value" id="m-profit">—</div><div class="kpi-sub">—</div></div>
+    <div class="kpi-card c-amber"><div class="kpi-label">Profit Margin</div><div class="kpi-value" id="m-margin">—</div><div class="kpi-sub">—</div></div>
+    <div class="kpi-card c-coral"><div class="kpi-label">Total Orders</div><div class="kpi-value" id="m-orders">—</div><div class="kpi-sub">—</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Avg Order Value</div><div class="kpi-value" id="m-aov">—</div><div class="kpi-sub">—</div></div>
+  </div>
+  <div class="row row-2">
+    <div class="chart-card">
+      <div class="chart-title">Region × Product Matrix</div>
+      <div class="chart-sub">Revenue, profit, and orders cross-tabulation</div>
+      <div class="table-wrap" id="matrix-region-product"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Category × Region Matrix</div>
+      <div class="chart-sub">Category performance across regions</div>
+      <div class="table-wrap" id="matrix-cat-region"></div>
+    </div>
+  </div>
+  <div class="chart-card" style="margin-top:14px">
+    <div class="chart-title">Complete Transaction Summary</div>
+    <div class="chart-sub">All records with ranking — <span id="detail-count">200</span> records shown</div>
+    <div class="table-wrap" id="detail-table"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// RAW DATA — from Power BI MCP
+// ═══════════════════════════════════════════════════════════════════
+const RAW = [
+  {d:"2025-01-01",r:"North",p:"Mouse",c:"Peripherals",s:49329,pr:10648.94},
+  {d:"2025-01-02",r:"South",p:"Mouse",c:"Peripherals",s:22534,pr:2854.48},
+  {d:"2025-01-03",r:"North",p:"Keyboard",c:"Peripherals",s:14633,pr:2749.33},
+  {d:"2025-01-04",r:"East",p:"Monitor",c:"Displays",s:17728,pr:3999.26},
+  {d:"2025-01-05",r:"South",p:"Printer",c:"Office Equipment",s:14644,pr:2299.2},
+  {d:"2025-01-06",r:"South",p:"Laptop",c:"Computers",s:38621,pr:7755.43},
+  {d:"2025-01-07",r:"West",p:"Keyboard",c:"Peripherals",s:8669,pr:1601.11},
+  {d:"2025-01-08",r:"North",p:"Mouse",c:"Peripherals",s:23101,pr:2755.06},
+  {d:"2025-01-09",r:"East",p:"Keyboard",c:"Peripherals",s:30822,pr:3625.49},
+  {d:"2025-01-10",r:"West",p:"Laptop",c:"Computers",s:22092,pr:4490.22},
+  {d:"2025-01-11",r:"South",p:"Monitor",c:"Displays",s:7185,pr:1567.96},
+  {d:"2025-01-12",r:"West",p:"Keyboard",c:"Peripherals",s:26292,pr:5279.45},
+  {d:"2025-01-13",r:"East",p:"Keyboard",c:"Peripherals",s:24395,pr:5313.58},
+  {d:"2025-01-14",r:"South",p:"Mouse",c:"Peripherals",s:37105,pr:5746.81},
+  {d:"2025-01-15",r:"North",p:"Laptop",c:"Computers",s:24755,pr:2325.01},
+  {d:"2025-01-16",r:"North",p:"Laptop",c:"Computers",s:18382,pr:3475.09},
+  {d:"2025-01-17",r:"East",p:"Printer",c:"Office Equipment",s:44331,pr:11051.24},
+  {d:"2025-01-18",r:"North",p:"Printer",c:"Office Equipment",s:25561,pr:3655.24},
+  {d:"2025-01-19",r:"North",p:"Monitor",c:"Displays",s:48542,pr:8906.8},
+  {d:"2025-01-20",r:"North",p:"Printer",c:"Office Equipment",s:27630,pr:6134.12},
+  {d:"2025-01-21",r:"North",p:"Printer",c:"Office Equipment",s:44154,pr:10362.8},
+  {d:"2025-01-22",r:"South",p:"Monitor",c:"Displays",s:18401,pr:2604.45},
+  {d:"2025-01-23",r:"East",p:"Mouse",c:"Peripherals",s:42251,pr:9942.64},
+  {d:"2025-01-24",r:"East",p:"Printer",c:"Office Equipment",s:8434,pr:2105.76},
+  {d:"2025-01-25",r:"North",p:"Printer",c:"Office Equipment",s:37009,pr:6438.73},
+  {d:"2025-01-26",r:"East",p:"Mouse",c:"Peripherals",s:17496,pr:2383.3},
+  {d:"2025-01-27",r:"South",p:"Keyboard",c:"Peripherals",s:39656,pr:9445.95},
+  {d:"2025-01-28",r:"East",p:"Laptop",c:"Computers",s:7036,pr:570.58},
+  {d:"2025-01-29",r:"West",p:"Laptop",c:"Computers",s:19138,pr:3213.58},
+  {d:"2025-01-30",r:"North",p:"Mouse",c:"Peripherals",s:49146,pr:6437.34},
+  {d:"2025-01-31",r:"East",p:"Mouse",c:"Peripherals",s:11182,pr:1265.78},
+  {d:"2025-02-01",r:"East",p:"Printer",c:"Office Equipment",s:46016,pr:8916.1},
+  {d:"2025-02-02",r:"East",p:"Laptop",c:"Computers",s:13477,pr:2906.51},
+  {d:"2025-02-03",r:"North",p:"Monitor",c:"Displays",s:36807,pr:7695.6},
+  {d:"2025-02-04",r:"East",p:"Laptop",c:"Computers",s:19972,pr:3731.43},
+  {d:"2025-02-05",r:"East",p:"Mouse",c:"Peripherals",s:31500,pr:5715.09},
+  {d:"2025-02-06",r:"North",p:"Monitor",c:"Displays",s:46871,pr:11319.87},
+  {d:"2025-02-07",r:"East",p:"Monitor",c:"Displays",s:49247,pr:10491.09},
+  {d:"2025-02-08",r:"South",p:"Printer",c:"Office Equipment",s:12530,pr:1283.63},
+  {d:"2025-02-09",r:"West",p:"Monitor",c:"Displays",s:44970,pr:6272.81},
+  {d:"2025-02-10",r:"East",p:"Printer",c:"Office Equipment",s:11484,pr:1538.97},
+  {d:"2025-02-11",r:"West",p:"Laptop",c:"Computers",s:25800,pr:2714.69},
+  {d:"2025-02-12",r:"North",p:"Mouse",c:"Peripherals",s:12065,pr:2158.12},
+  {d:"2025-02-13",r:"West",p:"Mouse",c:"Peripherals",s:7053,pr:1655.31},
+  {d:"2025-02-14",r:"North",p:"Keyboard",c:"Peripherals",s:22821,pr:5009.64},
+  {d:"2025-02-15",r:"East",p:"Laptop",c:"Computers",s:5885,pr:534.4},
+  {d:"2025-02-16",r:"East",p:"Mouse",c:"Peripherals",s:20198,pr:3931.8},
+  {d:"2025-02-17",r:"North",p:"Monitor",c:"Displays",s:33613,pr:8105.26},
+  {d:"2025-02-18",r:"West",p:"Printer",c:"Office Equipment",s:13021,pr:2545.18},
+  {d:"2025-02-19",r:"South",p:"Laptop",c:"Computers",s:40336,pr:3383.14},
+  {d:"2025-02-20",r:"West",p:"Mouse",c:"Peripherals",s:10279,pr:1322.31},
+  {d:"2025-02-21",r:"South",p:"Printer",c:"Office Equipment",s:42408,pr:6658.49},
+  {d:"2025-02-22",r:"South",p:"Printer",c:"Office Equipment",s:34732,pr:3253.26},
+  {d:"2025-02-23",r:"North",p:"Keyboard",c:"Peripherals",s:20628,pr:3740.36},
+  {d:"2025-02-24",r:"East",p:"Printer",c:"Office Equipment",s:13744,pr:3162.83},
+  {d:"2025-02-25",r:"West",p:"Mouse",c:"Peripherals",s:23138,pr:5450.78},
+  {d:"2025-02-26",r:"East",p:"Monitor",c:"Displays",s:13846,pr:1748.16},
+  {d:"2025-02-27",r:"South",p:"Monitor",c:"Displays",s:47911,pr:6534.68},
+  {d:"2025-02-28",r:"East",p:"Monitor",c:"Displays",s:20801,pr:4890.09},
+  {d:"2025-03-01",r:"West",p:"Keyboard",c:"Peripherals",s:46532,pr:5235.68},
+  {d:"2025-03-02",r:"South",p:"Keyboard",c:"Peripherals",s:11384,pr:2845.45},
+  {d:"2025-03-03",r:"West",p:"Laptop",c:"Computers",s:8523,pr:968.61},
+  {d:"2025-03-04",r:"East",p:"Keyboard",c:"Peripherals",s:20297,pr:3100.62},
+  {d:"2025-03-05",r:"South",p:"Monitor",c:"Displays",s:13897,pr:3186.78},
+  {d:"2025-03-06",r:"West",p:"Printer",c:"Office Equipment",s:28322,pr:3703},
+  {d:"2025-03-07",r:"East",p:"Monitor",c:"Displays",s:28541,pr:4388.14},
+  {d:"2025-03-08",r:"East",p:"Monitor",c:"Displays",s:45536,pr:8677.44},
+  {d:"2025-03-09",r:"East",p:"Laptop",c:"Computers",s:32662,pr:4108.06},
+  {d:"2025-03-10",r:"East",p:"Monitor",c:"Displays",s:8907,pr:1712.25},
+  {d:"2025-03-11",r:"West",p:"Mouse",c:"Peripherals",s:41332,pr:10310.05},
+  {d:"2025-03-12",r:"East",p:"Keyboard",c:"Peripherals",s:18898,pr:3331.27},
+  {d:"2025-03-13",r:"South",p:"Laptop",c:"Computers",s:45970,pr:5512.74},
+  {d:"2025-03-14",r:"West",p:"Mouse",c:"Peripherals",s:12598,pr:1335.8},
+  {d:"2025-03-15",r:"West",p:"Monitor",c:"Displays",s:47119,pr:9968.19},
+  {d:"2025-03-16",r:"West",p:"Keyboard",c:"Peripherals",s:21384,pr:3988.24},
+  {d:"2025-03-17",r:"South",p:"Printer",c:"Office Equipment",s:23663,pr:3957.47},
+  {d:"2025-03-18",r:"East",p:"Keyboard",c:"Peripherals",s:6371,pr:1195.83},
+  {d:"2025-03-19",r:"North",p:"Laptop",c:"Computers",s:43994,pr:9272.1},
+  {d:"2025-03-20",r:"West",p:"Keyboard",c:"Peripherals",s:5358,pr:749.52},
+  {d:"2025-03-21",r:"West",p:"Printer",c:"Office Equipment",s:12529,pr:3119.46},
+  {d:"2025-03-22",r:"North",p:"Mouse",c:"Peripherals",s:19012,pr:3020.41},
+  {d:"2025-03-23",r:"East",p:"Mouse",c:"Peripherals",s:16252,pr:3371.29},
+  {d:"2025-03-24",r:"South",p:"Laptop",c:"Computers",s:9009,pr:1247.85},
+  {d:"2025-03-25",r:"East",p:"Mouse",c:"Peripherals",s:49840,pr:6429.54},
+  {d:"2025-03-26",r:"South",p:"Printer",c:"Office Equipment",s:40176,pr:5228.4},
+  {d:"2025-03-27",r:"East",p:"Monitor",c:"Displays",s:12125,pr:2658.26},
+  {d:"2025-03-28",r:"North",p:"Monitor",c:"Displays",s:19691,pr:4664.33},
+  {d:"2025-03-29",r:"East",p:"Laptop",c:"Computers",s:30222,pr:7445.22},
+  {d:"2025-03-30",r:"West",p:"Laptop",c:"Computers",s:21898,pr:3698.33},
+  {d:"2025-03-31",r:"South",p:"Mouse",c:"Peripherals",s:47794,pr:7791.58},
+  {d:"2025-04-01",r:"North",p:"Mouse",c:"Peripherals",s:10237,pr:2476.4},
+  {d:"2025-04-02",r:"South",p:"Laptop",c:"Computers",s:27964,pr:2291.18},
+  {d:"2025-04-03",r:"West",p:"Keyboard",c:"Peripherals",s:20721,pr:3100.83},
+  {d:"2025-04-04",r:"East",p:"Laptop",c:"Computers",s:37552,pr:7173.87},
+  {d:"2025-04-05",r:"South",p:"Printer",c:"Office Equipment",s:31282,pr:3857.77},
+  {d:"2025-04-06",r:"East",p:"Mouse",c:"Peripherals",s:40135,pr:7587.85},
+  {d:"2025-04-07",r:"South",p:"Keyboard",c:"Peripherals",s:7612,pr:748.86},
+  {d:"2025-04-08",r:"East",p:"Printer",c:"Office Equipment",s:33279,pr:2929.72},
+  {d:"2025-04-09",r:"East",p:"Printer",c:"Office Equipment",s:36592,pr:3530.86},
+  {d:"2025-04-10",r:"East",p:"Keyboard",c:"Peripherals",s:13018,pr:2918.85},
+  {d:"2025-04-11",r:"South",p:"Printer",c:"Office Equipment",s:39933,pr:7312.28},
+  {d:"2025-04-12",r:"West",p:"Laptop",c:"Computers",s:13911,pr:1920.56},
+  {d:"2025-04-13",r:"East",p:"Laptop",c:"Computers",s:21855,pr:5047.02},
+  {d:"2025-04-14",r:"South",p:"Mouse",c:"Peripherals",s:24966,pr:3959.02},
+  {d:"2025-04-15",r:"South",p:"Mouse",c:"Peripherals",s:31080,pr:4287.39},
+  {d:"2025-04-16",r:"East",p:"Keyboard",c:"Peripherals",s:24445,pr:3097.46},
+  {d:"2025-04-17",r:"South",p:"Monitor",c:"Displays",s:5193,pr:1208.42},
+  {d:"2025-04-18",r:"West",p:"Keyboard",c:"Peripherals",s:23624,pr:2221.06},
+  {d:"2025-04-19",r:"West",p:"Mouse",c:"Peripherals",s:37346,pr:8547.95},
+  {d:"2025-04-20",r:"North",p:"Laptop",c:"Computers",s:46994,pr:11475.97},
+  {d:"2025-04-21",r:"West",p:"Laptop",c:"Computers",s:25494,pr:3339.78},
+  {d:"2025-04-22",r:"North",p:"Mouse",c:"Peripherals",s:42496,pr:5030.92},
+  {d:"2025-04-23",r:"West",p:"Laptop",c:"Computers",s:13381,pr:2268.1},
+  {d:"2025-04-24",r:"East",p:"Keyboard",c:"Peripherals",s:39816,pr:5068.89},
+  {d:"2025-04-25",r:"West",p:"Monitor",c:"Displays",s:33001,pr:5576.02},
+  {d:"2025-04-26",r:"South",p:"Mouse",c:"Peripherals",s:33674,pr:6149.54},
+  {d:"2025-04-27",r:"East",p:"Laptop",c:"Computers",s:48959,pr:8037.72},
+  {d:"2025-04-28",r:"South",p:"Keyboard",c:"Peripherals",s:44857,pr:8781.83},
+  {d:"2025-04-29",r:"North",p:"Mouse",c:"Peripherals",s:17611,pr:3619.27},
+  {d:"2025-04-30",r:"East",p:"Printer",c:"Office Equipment",s:31435,pr:3745.43},
+  {d:"2025-05-01",r:"North",p:"Keyboard",c:"Peripherals",s:13298,pr:1186.37},
+  {d:"2025-05-02",r:"West",p:"Laptop",c:"Computers",s:29929,pr:2857.68},
+  {d:"2025-05-03",r:"East",p:"Printer",c:"Office Equipment",s:9220,pr:844.79},
+  {d:"2025-05-04",r:"East",p:"Laptop",c:"Computers",s:30475,pr:3850.27},
+  {d:"2025-05-05",r:"North",p:"Keyboard",c:"Peripherals",s:22756,pr:4302.45},
+  {d:"2025-05-06",r:"West",p:"Keyboard",c:"Peripherals",s:24203,pr:5298.25},
+  {d:"2025-05-07",r:"South",p:"Keyboard",c:"Peripherals",s:16608,pr:3942.94},
+  {d:"2025-05-08",r:"South",p:"Laptop",c:"Computers",s:23937,pr:4744.9},
+  {d:"2025-05-09",r:"West",p:"Monitor",c:"Displays",s:19737,pr:4115.39},
+  {d:"2025-05-10",r:"North",p:"Monitor",c:"Displays",s:46435,pr:4812.94},
+  {d:"2025-05-11",r:"West",p:"Mouse",c:"Peripherals",s:48180,pr:10685.45},
+  {d:"2025-05-12",r:"West",p:"Monitor",c:"Displays",s:7217,pr:1798.54},
+  {d:"2025-05-13",r:"South",p:"Printer",c:"Office Equipment",s:36075,pr:7823.78},
+  {d:"2025-05-14",r:"South",p:"Printer",c:"Office Equipment",s:15241,pr:3767.87},
+  {d:"2025-05-15",r:"South",p:"Mouse",c:"Peripherals",s:43881,pr:7967.53},
+  {d:"2025-05-16",r:"West",p:"Printer",c:"Office Equipment",s:5696,pr:665.1},
+  {d:"2025-05-17",r:"South",p:"Monitor",c:"Displays",s:30436,pr:2442.86},
+  {d:"2025-05-18",r:"West",p:"Printer",c:"Office Equipment",s:27399,pr:5981.83},
+  {d:"2025-05-19",r:"West",p:"Laptop",c:"Computers",s:28786,pr:5262.45},
+  {d:"2025-05-20",r:"West",p:"Printer",c:"Office Equipment",s:43782,pr:5276.63},
+  {d:"2025-05-21",r:"South",p:"Laptop",c:"Computers",s:39030,pr:9288.96},
+  {d:"2025-05-22",r:"East",p:"Printer",c:"Office Equipment",s:46664,pr:8546.92},
+  {d:"2025-05-23",r:"South",p:"Mouse",c:"Peripherals",s:16494,pr:2367.05},
+  {d:"2025-05-24",r:"East",p:"Printer",c:"Office Equipment",s:38980,pr:8983.98},
+  {d:"2025-05-25",r:"North",p:"Mouse",c:"Peripherals",s:32959,pr:6053.88},
+  {d:"2025-05-26",r:"West",p:"Laptop",c:"Computers",s:45049,pr:6880.81},
+  {d:"2025-05-27",r:"South",p:"Keyboard",c:"Peripherals",s:39843,pr:4945.65},
+  {d:"2025-05-28",r:"South",p:"Keyboard",c:"Peripherals",s:40385,pr:9165.17},
+  {d:"2025-05-29",r:"North",p:"Monitor",c:"Displays",s:19654,pr:2344.69},
+  {d:"2025-05-30",r:"East",p:"Monitor",c:"Displays",s:43260,pr:5481.9},
+  {d:"2025-05-31",r:"West",p:"Laptop",c:"Computers",s:43744,pr:5741.76},
+  {d:"2025-06-01",r:"West",p:"Mouse",c:"Peripherals",s:20852,pr:2753.71},
+  {d:"2025-06-02",r:"South",p:"Monitor",c:"Displays",s:37001,pr:4313.52},
+  {d:"2025-06-03",r:"West",p:"Monitor",c:"Displays",s:18174,pr:1727.9},
+  {d:"2025-06-04",r:"South",p:"Keyboard",c:"Peripherals",s:48052,pr:8744.04},
+  {d:"2025-06-05",r:"West",p:"Keyboard",c:"Peripherals",s:34870,pr:6039.25},
+  {d:"2025-06-06",r:"East",p:"Printer",c:"Office Equipment",s:25605,pr:5977.37},
+  {d:"2025-06-07",r:"East",p:"Keyboard",c:"Peripherals",s:31145,pr:5286.28},
+  {d:"2025-06-08",r:"South",p:"Keyboard",c:"Peripherals",s:38973,pr:8490.62},
+  {d:"2025-06-09",r:"South",p:"Laptop",c:"Computers",s:22327,pr:3304.91},
+  {d:"2025-06-10",r:"North",p:"Mouse",c:"Peripherals",s:23385,pr:2070.05},
+  {d:"2025-06-11",r:"South",p:"Printer",c:"Office Equipment",s:31910,pr:6201.81},
+  {d:"2025-06-12",r:"North",p:"Mouse",c:"Peripherals",s:12071,pr:2364.76},
+  {d:"2025-06-13",r:"West",p:"Mouse",c:"Peripherals",s:37636,pr:5991.36},
+  {d:"2025-06-14",r:"West",p:"Printer",c:"Office Equipment",s:15950,pr:1381.07},
+  {d:"2025-06-15",r:"West",p:"Laptop",c:"Computers",s:10739,pr:1980.26},
+  {d:"2025-06-16",r:"East",p:"Mouse",c:"Peripherals",s:19395,pr:4618.65},
+  {d:"2025-06-17",r:"South",p:"Laptop",c:"Computers",s:14215,pr:2440.66},
+  {d:"2025-06-18",r:"East",p:"Laptop",c:"Computers",s:35238,pr:6965.01},
+  {d:"2025-06-19",r:"West",p:"Laptop",c:"Computers",s:28574,pr:7010.92},
+  {d:"2025-06-20",r:"East",p:"Keyboard",c:"Peripherals",s:22419,pr:5509.04},
+  {d:"2025-06-21",r:"East",p:"Keyboard",c:"Peripherals",s:21084,pr:2163.75},
+  {d:"2025-06-22",r:"North",p:"Monitor",c:"Displays",s:12338,pr:1959.56},
+  {d:"2025-06-23",r:"South",p:"Laptop",c:"Computers",s:7633,pr:1077.07},
+  {d:"2025-06-24",r:"West",p:"Laptop",c:"Computers",s:12596,pr:1757.88},
+  {d:"2025-06-25",r:"North",p:"Mouse",c:"Peripherals",s:34682,pr:5055.99},
+  {d:"2025-06-26",r:"West",p:"Printer",c:"Office Equipment",s:38294,pr:5588.8},
+  {d:"2025-06-27",r:"South",p:"Printer",c:"Office Equipment",s:48360,pr:9311.09},
+  {d:"2025-06-28",r:"East",p:"Mouse",c:"Peripherals",s:34784,pr:3112.14},
+  {d:"2025-06-29",r:"East",p:"Monitor",c:"Displays",s:37848,pr:5064.53},
+  {d:"2025-06-30",r:"North",p:"Mouse",c:"Peripherals",s:11519,pr:1471.22},
+  {d:"2025-07-01",r:"South",p:"Mouse",c:"Peripherals",s:35203,pr:6328.35},
+  {d:"2025-07-02",r:"South",p:"Monitor",c:"Displays",s:22273,pr:2007.9},
+  {d:"2025-07-03",r:"North",p:"Monitor",c:"Displays",s:12223,pr:1634.55},
+  {d:"2025-07-04",r:"East",p:"Mouse",c:"Peripherals",s:7223,pr:905.22},
+  {d:"2025-07-05",r:"West",p:"Laptop",c:"Computers",s:21691,pr:4773.41},
+  {d:"2025-07-06",r:"South",p:"Laptop",c:"Computers",s:28381,pr:3710.99},
+  {d:"2025-07-07",r:"East",p:"Monitor",c:"Displays",s:35978,pr:7037.4},
+  {d:"2025-07-08",r:"South",p:"Printer",c:"Office Equipment",s:14568,pr:1960.12},
+  {d:"2025-07-09",r:"West",p:"Printer",c:"Office Equipment",s:38976,pr:5090.68},
+  {d:"2025-07-10",r:"East",p:"Mouse",c:"Peripherals",s:21174,pr:2421.29},
+  {d:"2025-07-11",r:"North",p:"Monitor",c:"Displays",s:20459,pr:4400.91},
+  {d:"2025-07-12",r:"West",p:"Laptop",c:"Computers",s:49677,pr:10405.42},
+  {d:"2025-07-13",r:"West",p:"Laptop",c:"Computers",s:21970,pr:2241.29},
+  {d:"2025-07-14",r:"South",p:"Monitor",c:"Displays",s:35191,pr:3550.6},
+  {d:"2025-07-15",r:"South",p:"Mouse",c:"Peripherals",s:29429,pr:3781.95},
+  {d:"2025-07-16",r:"East",p:"Mouse",c:"Peripherals",s:5199,pr:922.49},
+  {d:"2025-07-17",r:"South",p:"Monitor",c:"Displays",s:42031,pr:5936.22},
+  {d:"2025-07-18",r:"South",p:"Mouse",c:"Peripherals",s:45752,pr:9020.63},
+  {d:"2025-07-19",r:"West",p:"Monitor",c:"Displays",s:46823,pr:5422.08},
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
+const COLORS = {
+  purple:'#534AB7',teal:'#1D9E75',amber:'#D97706',coral:'#DC2626',blue:'#2563EB',
+  purpleA:'rgba(83,74,183,0.15)',tealA:'rgba(29,158,117,0.12)',
+  regions:{East:'#534AB7',North:'#1D9E75',South:'#D97706',West:'#DC2626'},
+  products:{Mouse:'#534AB7',Laptop:'#1D9E75',Printer:'#D97706',Monitor:'#2563EB',Keyboard:'#DC2626'},
+  categories:{Peripherals:'#534AB7',Computers:'#1D9E75','Office Equipment':'#D97706',Displays:'#2563EB'}
+};
+const fmt$  = v => '$'+Math.round(v).toLocaleString();
+const fmtK  = v => v>=1e6?'$'+(v/1e6).toFixed(2)+'M':v>=1e3?'$'+(v/1e3).toFixed(0)+'K':fmt$(v);
+const fmtPct= v => (v*100).toFixed(1)+'%';
+const mon   = d => ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][new Date(d).getMonth()];
+const MONTH_NAMES=['','Jan','Feb','Mar','Apr','May','Jun','Jul'];
+
+let FILTERED = [...RAW];
+const charts = {};
+
+function getFilters(){
+  return {
+    month: document.getElementById('f-month').value,
+    region: document.getElementById('f-region').value,
+    product: document.getElementById('f-product').value,
+    category: document.getElementById('f-category').value
+  };
+}
+
+function applyFilters(){
+  const f = getFilters();
+  FILTERED = RAW.filter(row=>{
+    const m = new Date(row.d).getMonth()+1;
+    if(f.month!=='all' && m!=+f.month) return false;
+    if(f.region!=='all' && row.r!==f.region) return false;
+    if(f.product!=='all' && row.p!==f.product) return false;
+    if(f.category!=='all' && row.c!==f.category) return false;
+    return true;
+  });
+  document.getElementById('result-count').textContent = FILTERED.length+' records';
+  renderAll();
+}
+
+function resetFilters(){
+  ['f-month','f-region','f-product','f-category'].forEach(id=>document.getElementById(id).value='all');
+  applyFilters();
+}
+
+function groupBy(data, key){
+  const m={};
+  data.forEach(r=>{const k=r[key];if(!m[k]){m[k]={s:0,pr:0,n:0}}m[k].s+=r.s;m[k].pr+=r.pr;m[k].n++});
+  return m;
+}
+
+function sumField(data,field){return data.reduce((a,r)=>a+r[field],0)}
+
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id]}}
+
+function makeChart(id,cfg){
+  destroyChart(id);
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  charts[id]=new Chart(ctx,cfg);
+}
+
+function donutLegend(el,labels,values,colorMap){
+  const total=values.reduce((a,b)=>a+b,0);
+  el.innerHTML=labels.map((l,i)=>`
+    <div class="legend-item">
+      <span class="legend-dot" style="background:${colorMap[l]||'#999'}"></span>
+      <span>${l}</span>
+      <span class="legend-pct">${((values[i]/total)*100).toFixed(1)}%</span>
+      <span class="legend-val">${fmtK(values[i])}</span>
+    </div>`).join('');
+}
+
+const isDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
+const axisColor = isDark?'#9CA3AF':'#6B7280';
+const gridColor = isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.05)';
+const baseScales = {
+  x:{grid:{color:gridColor},ticks:{color:axisColor,font:{size:10}}},
+  y:{grid:{color:gridColor},ticks:{color:axisColor,font:{size:10},callback:v=>fmtK(v)}}
+};
+const baseOpts = {responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmtK(ctx.parsed.y||ctx.parsed||0)}}}};
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+function renderKPIs(prefix, data){
+  const totS=sumField(data,'s'), totP=sumField(data,'pr'), n=data.length;
+  const margin=totP/totS, aov=totS/n;
+  const byR=groupBy(data,'r'), byP=groupBy(data,'p');
+  const topR=Object.entries(byR).sort((a,b)=>b[1].s-a[1].s)[0]||['—',{s:0}];
+  const topP=Object.entries(byP).sort((a,b)=>b[1].s-a[1].s)[0]||['—',{s:0}];
+  const topRM=Object.entries(byR).sort((a,b)=>(b[1].pr/b[1].s)-(a[1].pr/a[1].s))[0]||['—',{s:1,pr:0}];
+  const topPM=Object.entries(byP).sort((a,b)=>(b[1].pr/b[1].s)-(a[1].pr/a[1].s))[0]||['—',{s:1,pr:0}];
+
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
+  if(prefix==='kpi'){
+    set('kpi-sales',fmtK(totS)); set('kpi-sales-sub',n+' transactions');
+    set('kpi-profit',fmtK(totP)); set('kpi-profit-sub',fmtPct(margin)+' of revenue');
+    set('kpi-margin',fmtPct(margin));
+    set('kpi-orders',n); set('kpi-orders-sub','Avg '+fmtK(aov)+'/order');
+    set('kpi-aov',fmtK(aov));
+  } else if(prefix==='s'){
+    set('s-sales',fmtK(totS)); set('s-sales-sub',n+' transactions');
+    set('s-orders',n); set('s-aov',fmtK(aov));
+    set('s-top-region',topR[0]); set('s-top-region-val',fmtK(topR[1].s));
+    set('s-top-product',topP[0]); set('s-top-product-val',fmtK(topP[1].s));
+  } else if(prefix==='p'){
+    set('p-profit',fmtK(totP)); set('p-margin',fmtPct(margin));
+    set('p-apo',fmtK(totP/n));
+    set('p-top-region',topRM[0]); set('p-top-region-m',fmtPct(topRM[1].pr/topRM[1].s)+' margin');
+    set('p-top-product',topPM[0]); set('p-top-product-m',fmtPct(topPM[1].pr/topPM[1].s)+' margin');
+  } else if(prefix==='t'){
+    set('t-sales',fmtK(totS));
+    const byMonth={};data.forEach(r=>{const m=new Date(r.d).getMonth()+1;if(!byMonth[m]){byMonth[m]={s:0}}byMonth[m].s+=r.s});
+    const bestM=Object.entries(byMonth).sort((a,b)=>b[1].s-a[1].s)[0]||[0,{s:0}];
+    set('t-best-month',MONTH_NAMES[+bestM[0]]||'—'); set('t-best-month-v',fmtK(bestM[1].s));
+    const bestD=data.reduce((a,b)=>b.s>a.s?b:a,{s:0,d:'—'});
+    set('t-best-day',bestD.d); set('t-best-day-v',fmtK(bestD.s));
+    set('t-avg-day',fmtK(totS/n));
+    set('t-spd',fmtK(totS/n));
+  } else if(prefix==='m'){
+    set('m-sales',fmtK(totS)); set('m-profit',fmtK(totP));
+    set('m-margin',fmtPct(margin)); set('m-orders',n); set('m-aov',fmtK(aov));
+  }
+}
+
+function renderOverview(data){
+  renderKPIs('kpi',data);
+  const byR=groupBy(data,'r'), byP=groupBy(data,'p'), byC=groupBy(data,'c');
+
+  // Trend
+  const sorted=[...data].sort((a,b)=>a.d.localeCompare(b.d));
+  makeChart('c-trend',{type:'line',data:{
+    labels:sorted.map(r=>r.d.slice(5)),
+    datasets:[
+      {label:'Revenue',data:sorted.map(r=>r.s),borderColor:COLORS.purple,backgroundColor:COLORS.purpleA,fill:true,tension:.3,pointRadius:0,borderWidth:2},
+      {label:'Profit',data:sorted.map(r=>r.pr),borderColor:COLORS.teal,backgroundColor:COLORS.tealA,fill:true,tension:.3,pointRadius:0,borderWidth:2}
+    ]},options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:axisColor}}},scales:{...baseScales,x:{...baseScales.x,ticks:{...baseScales.x.ticks,maxTicksLimit:10}}}}});
+
+  // Region bar
+  const rKeys=Object.keys(byR).sort((a,b)=>byR[b].s-byR[a].s);
+  makeChart('c-region-bar',{type:'bar',data:{
+    labels:rKeys,
+    datasets:[
+      {label:'Revenue',data:rKeys.map(k=>byR[k].s),backgroundColor:rKeys.map(k=>COLORS.regions[k]||COLORS.purple),borderRadius:6},
+      {label:'Profit',data:rKeys.map(k=>byR[k].pr),backgroundColor:rKeys.map(k=>COLORS.regions[k]+'88'),borderRadius:6}
+    ]},options:{...baseOpts,indexAxis:'y',plugins:{...baseOpts.plugins,legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:axisColor}}},scales:{x:{...baseScales.y},y:{...baseScales.x,ticks:{...baseScales.x.ticks,font:{size:11}}}}}});
+
+  // Region donut
+  makeChart('c-region-donut',{type:'doughnut',data:{
+    labels:rKeys,datasets:[{data:rKeys.map(k=>byR[k].s),backgroundColor:rKeys.map(k=>COLORS.regions[k]||COLORS.purple),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmtK(ctx.parsed)}}}}});
+  donutLegend(document.getElementById('donut-legend-region'),rKeys,rKeys.map(k=>byR[k].s),COLORS.regions);
+
+  // Product bar
+  const pKeys=Object.keys(byP).sort((a,b)=>byP[b].s-byP[a].s);
+  makeChart('c-product-bar',{type:'bar',data:{
+    labels:pKeys,
+    datasets:[
+      {label:'Revenue',data:pKeys.map(k=>byP[k].s),backgroundColor:pKeys.map(k=>COLORS.products[k]||COLORS.purple),borderRadius:6},
+      {label:'Profit',data:pKeys.map(k=>byP[k].pr),backgroundColor:pKeys.map(k=>(COLORS.products[k]||COLORS.purple)+'88'),borderRadius:6}
+    ]},options:{...baseOpts,indexAxis:'y',plugins:{...baseOpts.plugins,legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:axisColor}}},scales:{x:{...baseScales.y},y:{...baseScales.x}}}});
+
+  // Category bar
+  const cKeys=Object.keys(byC).sort((a,b)=>byC[b].s-byC[a].s);
+  makeChart('c-category-bar',{type:'bar',data:{
+    labels:cKeys,
+    datasets:[
+      {label:'Revenue',data:cKeys.map(k=>byC[k].s),backgroundColor:cKeys.map(k=>COLORS.categories[k]||COLORS.purple),borderRadius:6,yAxisID:'y'},
+      {label:'Margin %',data:cKeys.map(k=>+(byC[k].pr/byC[k].s*100).toFixed(1)),type:'line',borderColor:COLORS.amber,backgroundColor:'transparent',pointBackgroundColor:COLORS.amber,pointRadius:5,yAxisID:'y2',borderWidth:2.5}
+    ]},options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:axisColor}},tooltip:{callbacks:{label:ctx=>ctx.datasetIndex===1?' Margin: '+ctx.parsed.y+'%':' Rev: '+fmtK(ctx.parsed.y)}}},
+      scales:{x:{...baseScales.x},y:{...baseScales.y,position:'left'},y2:{position:'right',grid:{display:false},ticks:{color:COLORS.amber,font:{size:10},callback:v=>v+'%'}}}}});
+}
+
+function renderSales(data){
+  renderKPIs('s',data);
+  const byR=groupBy(data,'r'), byP=groupBy(data,'p'), byC=groupBy(data,'c');
+  const sorted=[...data].sort((a,b)=>a.d.localeCompare(b.d));
+  const regions=['East','North','South','West'];
+  const products=['Keyboard','Laptop','Monitor','Mouse','Printer'];
+
+  makeChart('c-sales-trend',{type:'line',data:{
+    labels:sorted.map(r=>r.d.slice(5)),
+    datasets:[{label:'Revenue',data:sorted.map(r=>r.s),borderColor:COLORS.purple,backgroundColor:COLORS.purpleA,fill:true,tension:.3,pointRadius:0,borderWidth:2}]},
+    options:{...baseOpts,scales:{...baseScales,x:{...baseScales.x,ticks:{...baseScales.x.ticks,maxTicksLimit:12}}}}});
+
+  // Stacked region×product
+  makeChart('c-stacked-region',{type:'bar',data:{
+    labels:regions,
+    datasets:products.map(p=>({label:p,data:regions.map(r=>{const rows=data.filter(x=>x.r===r&&x.p===p);return rows.reduce((a,b)=>a+b.s,0)}),backgroundColor:COLORS.products[p],borderRadius:3}))},
+    options:{...baseOpts,indexAxis:'y',plugins:{...baseOpts.plugins,legend:{display:true,position:'top',labels:{boxWidth:8,font:{size:9},color:axisColor}}},scales:{x:{...baseScales.y,stacked:true},y:{...baseScales.x,stacked:true}}}});
+
+  // Product rank
+  const pKeys=Object.keys(byP).sort((a,b)=>byP[b].s-byP[a].s);
+  makeChart('c-prod-rank',{type:'bar',data:{
+    labels:pKeys,
+    datasets:[
+      {label:'Revenue',data:pKeys.map(k=>byP[k].s),backgroundColor:pKeys.map(k=>COLORS.products[k]),borderRadius:6,yAxisID:'y'},
+      {label:'Orders',data:pKeys.map(k=>byP[k].n),type:'line',borderColor:COLORS.amber,backgroundColor:'transparent',pointBackgroundColor:COLORS.amber,pointRadius:5,yAxisID:'y2',borderWidth:2}
+    ]},options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:axisColor}},tooltip:{callbacks:{label:ctx=>ctx.datasetIndex===1?' Orders: '+ctx.parsed.y:' Rev: '+fmtK(ctx.parsed.y)}}},
+      scales:{x:{...baseScales.x},y:{...baseScales.y,position:'left'},y2:{position:'right',grid:{display:false},ticks:{color:COLORS.amber,font:{size:10}}}}}});
+
+  // Category donut
+  const cKeys=Object.keys(byC).sort((a,b)=>byC[b].s-byC[a].s);
+  makeChart('c-cat-donut',{type:'doughnut',data:{
+    labels:cKeys,datasets:[{data:cKeys.map(k=>byC[k].s),backgroundColor:cKeys.map(k=>COLORS.categories[k]),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmtK(ctx.parsed)}}}}});
+  donutLegend(document.getElementById('donut-legend-cat'),cKeys,cKeys.map(k=>byC[k].s),COLORS.categories);
+}
+
+function renderProfit(data){
+  renderKPIs('p',data);
+  const byR=groupBy(data,'r'), byP=groupBy(data,'p'), byC=groupBy(data,'c');
+  const sorted=[...data].sort((a,b)=>a.d.localeCompare(b.d));
+
+  makeChart('c-profit-trend',{type:'line',data:{
+    labels:sorted.map(r=>r.d.slice(5)),
+    datasets:[{label:'Profit',data:sorted.map(r=>r.pr),borderColor:COLORS.teal,backgroundColor:'rgba(29,158,117,0.12)',fill:true,tension:.3,pointRadius:0,borderWidth:2}]},
+    options:{...baseOpts,scales:{...baseScales,x:{...baseScales.x,ticks:{...baseScales.x.ticks,maxTicksLimit:12}}}}});
+
+  const rKeys=Object.keys(byR).sort((a,b)=>byR[b].pr-byR[a].pr);
+  makeChart('c-profit-region',{type:'bar',data:{
+    labels:rKeys,
+    datasets:[
+      {label:'Profit',data:rKeys.map(k=>byR[k].pr),backgroundColor:rKeys.map(k=>COLORS.regions[k]),borderRadius:6,yAxisID:'y'},
+      {label:'Margin %',data:rKeys.map(k=>+(byR[k].pr/byR[k].s*100).toFixed(1)),type:'line',borderColor:COLORS.amber,backgroundColor:'transparent',pointBackgroundColor:COLORS.amber,pointRadius:6,yAxisID:'y2',borderWidth:2.5}
+    ]},options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:axisColor}},tooltip:{callbacks:{label:ctx=>ctx.datasetIndex===1?' Margin: '+ctx.parsed.y+'%':' Profit: '+fmtK(ctx.parsed.y)}}},
+      scales:{x:{...baseScales.x},y:{...baseScales.y,position:'left'},y2:{position:'right',grid:{display:false},ticks:{color:COLORS.amber,font:{size:10},callback:v=>v+'%'}}}}});
+
+  const pKeys=Object.keys(byP).sort((a,b)=>byP[b].pr-byP[a].pr);
+  makeChart('c-profit-product',{type:'bar',data:{
+    labels:pKeys,
+    datasets:[
+      {label:'Profit',data:pKeys.map(k=>byP[k].pr),backgroundColor:pKeys.map(k=>COLORS.products[k]),borderRadius:6,yAxisID:'y'},
+      {label:'Margin %',data:pKeys.map(k=>+(byP[k].pr/byP[k].s*100).toFixed(1)),type:'line',borderColor:COLORS.coral,backgroundColor:'transparent',pointBackgroundColor:COLORS.coral,pointRadius:6,yAxisID:'y2',borderWidth:2.5}
+    ]},options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:axisColor}},tooltip:{callbacks:{label:ctx=>ctx.datasetIndex===1?' Margin: '+ctx.parsed.y+'%':' Profit: '+fmtK(ctx.parsed.y)}}},
+      scales:{x:{...baseScales.x},y:{...baseScales.y,position:'left'},y2:{position:'right',grid:{display:false},ticks:{color:COLORS.coral,font:{size:10},callback:v=>v+'%'}}}}});
+
+  const cKeys=Object.keys(byC).sort((a,b)=>byC[b].pr-byC[a].pr);
+  makeChart('c-profit-cat-donut',{type:'doughnut',data:{
+    labels:cKeys,datasets:[{data:cKeys.map(k=>byC[k].pr),backgroundColor:cKeys.map(k=>COLORS.categories[k]),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmtK(ctx.parsed)}}}}});
+  donutLegend(document.getElementById('donut-legend-profit-cat'),cKeys,cKeys.map(k=>byC[k].pr),COLORS.categories);
+}
+
+function renderTrends(data){
+  renderKPIs('t',data);
+  const sorted=[...data].sort((a,b)=>a.d.localeCompare(b.d));
+
+  makeChart('c-full-trend',{type:'line',data:{
+    labels:sorted.map(r=>r.d.slice(5)),
+    datasets:[
+      {label:'Revenue',data:sorted.map(r=>r.s),borderColor:COLORS.purple,backgroundColor:COLORS.purpleA,fill:true,tension:.3,pointRadius:0,borderWidth:2,yAxisID:'y'},
+      {label:'Profit',data:sorted.map(r=>r.pr),borderColor:COLORS.teal,backgroundColor:COLORS.tealA,fill:true,tension:.3,pointRadius:0,borderWidth:2,yAxisID:'y'}
+    ]},options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:axisColor}}},
+      scales:{...baseScales,x:{...baseScales.x,ticks:{...baseScales.x.ticks,maxTicksLimit:15}}}}});
+
+  // Monthly
+  const byM={};sorted.forEach(r=>{const m=new Date(r.d).getMonth()+1;if(!byM[m]){byM[m]={s:0,pr:0}}byM[m].s+=r.s;byM[m].pr+=r.pr});
+  const mKeys=Object.keys(byM).map(Number).sort((a,b)=>a-b);
+  makeChart('c-monthly',{type:'bar',data:{
+    labels:mKeys.map(m=>MONTH_NAMES[m]),
+    datasets:[
+      {label:'Revenue',data:mKeys.map(m=>byM[m].s),backgroundColor:COLORS.purple,borderRadius:6},
+      {label:'Profit',data:mKeys.map(m=>byM[m].pr),backgroundColor:COLORS.teal,borderRadius:6}
+    ]},options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:axisColor}}},scales:{...baseScales}}});
+
+  // Region by month stacked
+  const regions=['East','North','South','West'];
+  makeChart('c-region-time',{type:'bar',data:{
+    labels:mKeys.map(m=>MONTH_NAMES[m]),
+    datasets:regions.map(r=>({label:r,data:mKeys.map(m=>{return sorted.filter(x=>new Date(x.d).getMonth()+1===m&&x.r===r).reduce((a,b)=>a+b.s,0)}),backgroundColor:COLORS.regions[r],borderRadius:3}))},
+    options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,position:'top',labels:{boxWidth:8,font:{size:9},color:axisColor}}},scales:{x:{...baseScales.x,stacked:true},y:{...baseScales.y,stacked:true}}}});
+}
+
+function renderMatrix(data){
+  renderKPIs('m',data);
+  const regions=['East','North','South','West'];
+  const products=['Keyboard','Laptop','Monitor','Mouse','Printer'];
+  const categories=['Computers','Displays','Office Equipment','Peripherals'];
+
+  // Region × Product matrix
+  let html1=`<table><thead><tr><th>Region</th>${products.map(p=>`<th>${p}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
+  let totals={};products.forEach(p=>totals[p]={s:0});let grandS=0,grandP=0,grandN=0;
+  regions.forEach(r=>{
+    const rData=data.filter(x=>x.r===r);
+    const rS=rData.reduce((a,b)=>a+b.s,0);
+    const rP=rData.reduce((a,b)=>a+b.pr,0);
+    const rN=rData.length;
+    grandS+=rS;grandP+=rP;grandN+=rN;
+    html1+=`<tr><td><strong>${r}</strong></td>`;
+    products.forEach(p=>{
+      const pData=rData.filter(x=>x.p===p);
+      const ps=pData.reduce((a,b)=>a+b.s,0);
+      totals[p].s=(totals[p].s||0)+ps;
+      const maxS=Math.max(...regions.map(rr=>data.filter(x=>x.r===rr&&x.p===p).reduce((a,b)=>a+b.s,0)));
+      const barW=maxS>0?Math.round(ps/maxS*60):0;
+      html1+=`<td><div class="bar-cell"><div class="mini-bar" style="width:${barW}px"></div>${fmtK(ps)}</div></td>`;
+    });
+    html1+=`<td><strong>${fmtK(rS)}</strong><br><small style="color:var(--gray)">${(rP/rS*100).toFixed(1)}% margin</small></td></tr>`;
+  });
+  html1+=`</tbody><tfoot><tr><td>Total</td>${products.map(p=>`<td>${fmtK(totals[p].s)}</td>`).join('')}<td>${fmtK(grandS)}</td></tr></tfoot></table>`;
+  document.getElementById('matrix-region-product').innerHTML=html1;
+
+  // Category × Region matrix
+  let html2=`<table><thead><tr><th>Category</th>${regions.map(r=>`<th>${r}</th>`).join('')}<th>Total</th><th>Margin</th></tr></thead><tbody>`;
+  categories.forEach(cat=>{
+    const cData=data.filter(x=>x.c===cat);
+    const cS=cData.reduce((a,b)=>a+b.s,0);
+    const cP=cData.reduce((a,b)=>a+b.pr,0);
+    html2+=`<tr><td><strong>${cat}</strong></td>`;
+    regions.forEach(r=>{
+      const rData=cData.filter(x=>x.r===r);
+      const rs=rData.reduce((a,b)=>a+b.s,0);
+      html2+=`<td>${fmtK(rs)}</td>`;
+    });
+    html2+=`<td><strong>${fmtK(cS)}</strong></td><td style="color:var(--teal);font-weight:600">${(cP/cS*100).toFixed(1)}%</td></tr>`;
+  });
+  html2+=`</tbody></table>`;
+  document.getElementById('matrix-cat-region').innerHTML=html2;
+
+  // Detail table
+  const sorted=[...data].sort((a,b)=>b.s-a.s);
+  document.getElementById('detail-count').textContent=sorted.length;
+  let html3=`<table><thead><tr><th>#</th><th>Date</th><th>Region</th><th>Product</th><th>Category</th><th>Revenue</th><th>Profit</th><th>Margin</th></tr></thead><tbody>`;
+  sorted.slice(0,50).forEach((row,i)=>{
+    const margin=(row.pr/row.s*100).toFixed(1);
+    const badge=i<3?`<span class="rank-badge r${i+1}">${i+1}</span>`:''
+    html3+=`<tr><td>${badge}${i+1}</td><td>${row.d}</td><td>${row.r}</td><td>${row.p}</td><td>${row.c}</td><td>${fmtK(row.s)}</td><td>${fmtK(row.pr)}</td><td style="color:var(--teal)">${margin}%</td></tr>`;
+  });
+  if(sorted.length>50)html3+=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:12px">Showing top 50 of ${sorted.length} records</td></tr>`;
+  html3+=`</tbody></table>`;
+  document.getElementById('detail-table').innerHTML=html3;
+}
+
+function renderAll(){
+  const tab=document.querySelector('.main.active');
+  if(!tab)return;
+  const id=tab.id;
+  if(id==='tab-overview')renderOverview(FILTERED);
+  else if(id==='tab-sales')renderSales(FILTERED);
+  else if(id==='tab-profit')renderProfit(FILTERED);
+  else if(id==='tab-trends')renderTrends(FILTERED);
+  else if(id==='tab-matrix')renderMatrix(FILTERED);
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.main').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  el.classList.add('active');
+  setTimeout(()=>renderAll(),50);
+}
+
+// Init
+renderOverview(FILTERED);
+</script>
+</body>
+</html>
